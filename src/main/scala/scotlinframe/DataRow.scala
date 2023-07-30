@@ -1,23 +1,19 @@
 package scotlinframe
 
-import org.jetbrains.kotlinx.dataframe.{api => ktApi}
-import org.jetbrains.kotlinx.dataframe.api.{
-    ConstructorsKt => KtConstructorsKt, 
-    DataRowApiKt => KtDataRowApiKt,
-}
-
 import scala.jdk.CollectionConverters.*
+import org.jetbrains.kotlinx.{dataframe => ktdataframe}
+import org.jetbrains.kotlinx.dataframe.{api => ktapi}
+import scala.util.Try
 
-import org.jetbrains.kotlinx.dataframe.{DataRowKt => KtDataRowKt}
-import org.jetbrains.kotlinx.dataframe.{DataRow => KtDataRow}
+class DataRow(private[scotlinframe] val ktdataRow: ktdataframe.DataRow[?]):
 
-class DataRow(private[scotlinframe] val ktdataRow : KtDataRow[?]):
-  
-  def df : DataFrame = DataFrame(ktdataRow.df())
+  def df: DataFrame = DataFrame(ktdataRow.df())
 
-  def get[A](column : String) : A = ktdataRow.get(column).asInstanceOf[A]
+  def get[A](column: String): A | Null = ktdataRow.get(column).asInstanceOf[A]
+
+  def prev: Option[DataRow] =
+    ktapi.DataRowApiKt.prev(ktdataRow) match
+      case null => None
+      case prev => Some(DataRow(prev))
 
   override def toString(): String = ktdataRow.toString()
-
-
-

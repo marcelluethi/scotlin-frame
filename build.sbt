@@ -9,7 +9,7 @@ ThisBuild / licenses += ("Apache-2.0", url(
 ThisBuild / scmInfo := Some(
   ScmInfo(
     url("https://github.com/marcelluethi/scotlin-frame"),
-    "git@github.com:marcelluethi/scotlin-frame.git"
+    "git@github.com:marcelluethi/scotlinframe.git"
   )
 )
 ThisBuild / developers := List(
@@ -24,7 +24,7 @@ ThisBuild / versionScheme := Some("early-semver")
 
 lazy val root = (project in file("."))
   .settings(
-    name := """scala-dataframe""",
+    name := """scotlinframe""",
     publishMavenStyle := true,
     publishTo := Some(
       if (isSnapshot.value)
