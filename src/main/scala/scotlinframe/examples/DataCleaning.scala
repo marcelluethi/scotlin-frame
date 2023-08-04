@@ -36,24 +36,30 @@ def datacleaningExample(): Unit =
   )
   df.print()
 
+  val flightNumber = "flightNumber".asColumn[Double]
+  val airline = "airline".asColumn[String]
+  val fromTo = "fromTo".asColumn[String]
+  val origin = "origin".asColumn[String]
+  val destination = "destination".asColumn[String]
+
   // format: off
-  val clean = 
+  val clean =
     df
-    .fillNA("flightNumber").mapRow(row =>
+    .fillNA(flightNumber).mapRow(row =>
       row.prev
-        .map(prevRow => prevRow.get[Double]("flightNumber").nn + 10)
+        .map(prevRow => prevRow.get(flightNumber).nn + 10)
         .getOrElse(0)
     )
-    .convert("flightNumber").to[Int]
-    .update("airline").mapValue((value : String)=>
+    .convert(flightNumber).to[Int]
+    .update(airline).mapValue((value : String)=>
       "([a-zA-Z\\s]+)".r.findFirstIn(value).getOrElse("")
     )
-    .split("fromTo").by(
+    .split(fromTo).by(
       (value : String) =>
         val parts = value.nn.split("_")
         (parts(0), parts(1))
-      ).into("origin", "destination")
-    .update("origin").mapValue((origin : String) => origin.nn.toLowerCase)
-    .update("destination").mapValue((dest : String) => dest.nn.toLowerCase)
+      ).into(origin, destination)
+    .update(origin).mapValue((origin : String) => origin.nn.toLowerCase)
+    .update(destination).mapValue((dest : String) => dest.nn.toLowerCase)
     .print()
 // format: on

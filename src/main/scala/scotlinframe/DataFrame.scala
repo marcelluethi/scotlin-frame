@@ -17,17 +17,28 @@ import scotlinframe.dataframe.*
 import org.jetbrains.kotlinx.dataframe.DataFrameKt
 import org.jetbrains.kotlinx.dataframe.jupyter.CellRenderer
 import org.jetbrains.kotlinx.dataframe.io.DataFrameHtmlData
+import scotlinframe.utils.KotlinToScotlinFrameType
+import scotlinframe.ColumnMapper
+import scotlinframe.ColumnAccessor
 
+/** A DataFrame is a collection of columns of data.
+  */
 class DataFrame(
     private[scotlinframe] val ktDataFrame: ktdataframe.DataFrame[?]
 ):
 
+  /** Returns the columns of the DataFrame.
+    */
   def columns: Seq[DataColumn[?]] =
     ktDataFrame.columns().asScala.toSeq.map(DataColumn(_))
 
+  /** Returns the column names of the DataFrame.
+    */
   def columnNames: Seq[String] =
     ktDataFrame.columnNames().asScala.toSeq
 
+  /** Returns the types of the columns of the DataFrame.
+    */
   def columnTypes: Seq[DataType] =
     ktDataFrame
       .columnTypes()
@@ -35,25 +46,53 @@ class DataFrame(
       .map(ktype => DataType.FromKType(ktype))
       .toSeq
 
+  /** Returns the specified column
+    */
+  def get[A](column: ColumnAccessor[A]): DataColumn[A] =
+    val colAsAny = ktDataFrame.get(column.name): ktdataframe.DataColumn[?]
+    DataColumn[A](colAsAny.asInstanceOf[ktdataframe.DataColumn[A]])
+
+  /** Returns a dataframe with the selected columns
+    */
+  def get(column1: ColumnAccessor[?], columns: ColumnAccessor[?]*): DataFrame =
+    DataFrame(ktDataFrame.get(column1.name, columns.map(_.name): _*))
+
+  /** Adds a new column to the end of the dataframe.
+    */
   def add(column: DataColumn[?]): DataFrame = DataFrame(
     ktapi.AddKt.add(ktDataFrame, column.ktDataColumn)
   )
 
-  def add(df: DataFrame): DataFrame = DataFrame(
-    ktapi.AddKt.add(ktDataFrame, df.ktDataFrame)
+  /** Adds the column of the provided dataframe to the end of the dataframe.
+    */
+  def add(otherDf: DataFrame): DataFrame = DataFrame(
+    ktapi.AddKt.add(ktDataFrame, otherDf.ktDataFrame)
   )
 
+  /** Adds new columns by mapping values of existing columns
+    */
+  def add(columnMappers: ColumnMapper[?, ?]*): DataFrame =
+    columnMappers.foldLeft(this)((df, mapper) => df.add(mapper.run(df)))
+
+  /** Appends a row to the end of the dataframe.
+    */
   def append(row: DataRow): DataFrame =
     DataFrame(ktapi.AppendKt.append(ktDataFrame, row.ktdataRow))
 
-  def remove(columnName: String): DataFrame = DataFrame(
-    ktapi.RemoveKt.remove(ktDataFrame, columnName)
+  /** Removes the specified column from the dataframe.
+    */
+  def remove(column: ColumnAccessor[?]): DataFrame = DataFrame(
+    ktapi.RemoveKt.remove(ktDataFrame, column.name)
   )
 
-  def concat(df: DataFrame): DataFrame = DataFrame(
-    ktapi.ConcatKt.concat(ktDataFrame, df.ktDataFrame)
+  /** Concatenates the rows of this dataframe with the rows of the provided dataframe.
+    */
+  def concat(otherDf: DataFrame): DataFrame = DataFrame(
+    ktapi.ConcatKt.concat(ktDataFrame, otherDf.ktDataFrame)
   )
 
+  /** Returns a new dataframe in which strings are parsed and if possible automatically converted to an appropriate type
+    */
   def parse(parserOptions: ParserOptions) =
     val parserOptionsKt = ktapi.ParserOptions(
       parserOptions.locale,
@@ -63,35 +102,34 @@ class DataFrame(
     )
     DataFrame(ktapi.ParseKt.parse(ktDataFrame, parserOptionsKt))
 
-  def split(columnName: String): SplitByClause =
-    SplitByClause(this, columnName)
+  /** Splits a column into multiple columns
+    */
+  def split[A](column: ColumnAccessor[A]): SplitByClause[A] =
+    SplitByClause(this, column)
 
-  def merge(
-      column1Name: String,
-      column2Name: String
-  ): MergeWithClause = MergeWithClause(this, column1Name, column2Name)
+  /** Merges two columns
+    */
+  def merge[A, B](
+      column1: ColumnAccessor[A],
+      column2: ColumnAccessor[B]
+  ): MergeWithClause[A, B] = MergeWithClause[A, B](this, column1, column2)
 
-  def move(columnNames: String*): MoveClause =
+  /** Move a column within the dataframe
+    */
+  def move(columns: ColumnAccessor[?]*): MoveClause =
+    val columnNames = columns.map(_.name)
     MoveClause(ktapi.MoveKt.move(ktDataFrame, columnNames: _*))
 
-  def update(columnNames: String*): UpdateClause =
-    val updateKt = ktapi.UpdateKt.update(ktDataFrame, columnNames: _*)
+  def update(columns: ColumnAccessor[?]*): UpdateClause =
+    val updateKt = ktapi.UpdateKt.update(ktDataFrame, columns.map(_.name): _*)
     UpdateClause(updateKt)
 
-  def fillNA(columnNames: String*): UpdateClause =
-    val updateKt = ktapi.NullsKt.fillNA(ktDataFrame, columnNames: _*)
+  def fillNA(columns: ColumnAccessor[?]*): UpdateClause =
+    val updateKt = ktapi.NullsKt.fillNA(ktDataFrame, columns.map(_.name): _*)
     UpdateClause(updateKt)
 
-  def convert(columnNames: String*): ConvertClause =
-    ConvertClause(this, columnNames: _*)
-
-  def get[A](columnName: String): DataColumn[A | Null] =
-    val colAsAny = ktDataFrame.get(columnName): ktdataframe.DataColumn[?]
-    DataColumn(colAsAny.asInstanceOf[ktdataframe.DataColumn[A | Null]])
-
-  def get(columnNames: String*): DataFrame =
-    if columnNames.isEmpty then DataFrame.empty
-    else DataFrame(ktDataFrame.get(columnNames.head, columnNames.tail: _*))
+  def convert(columns: ColumnAccessor[?]*): ConvertClause =
+    ConvertClause(this, columns: _*)
 
   def head(n: Int): DataFrame = DataFrame(
     ktapi.HeadKt.head(ktDataFrame, n)
@@ -134,6 +172,26 @@ class DataFrame(
   def map[A](f: DataRow => A): Seq[A] =
     rows.map(f).toSeq
 
+  /** It applies the provided column mappers to the data frame and returns a new data frame with the mapped columns.
+    */
+  // def mapColumns(columnMappers : ColumnMapper[?, ?]*) : DataFrame =
+
+  //   // it might happen that several mappers map the same column.
+  //   // In this case we must not replace the column until all the mappers
+  //   // have been applied. Therefore, we start to build a map that add for each
+  //   // column the mapped columns
+  //   val columnMap = columnMappers.map(mapper => mapper.column -> mapper.run(this) )
+  //     .groupBy(_._1)
+  //     .view
+  //     .mapValues(_.map(_._2))
+  //     .toMap
+
+  //   // now we can replace the columns
+  //   columnMap.keys.foldLeft(this) { (df, column) =>
+  //     val mappedColumns = columnMap(column)
+  //     df.replace(column).withColumns(mappedColumns)
+  //   }
+
   // def mapToColumn[A](columnName: String, f: DataRow => A)(using
   //     toKType: ToKType[A]
   // ): DataColumn[A] =
@@ -152,15 +210,18 @@ class DataFrame(
   def insert[A](column: DataColumn[A]): InsertClause =
     InsertClause(ktapi.InsertKt.insert(ktDataFrame, column.ktDataColumn))
 
-  def replace[A](column: String): ReplaceClause =
-    ReplaceClause(ktapi.ReplaceKt.replace(ktDataFrame, column))
+  def insert(columnMapper: ColumnMapper[?, ?]): InsertClause =
+    this.insert(columnMapper.run(this))
+
+  def replace(column: ColumnAccessor[?]): ReplaceClause =
+    ReplaceClause(this, ktapi.ReplaceKt.replace(ktDataFrame, column.name))
 
   def mapRows[A: ToKType](
       f: DataRow => A,
-      newColumnName: String
+      newColumn: ColumnAccessor[?]
   ): MapClause1[A] =
-    val newColumn = DataColumn.of[A](newColumnName, rows.map(f).toSeq)
-    MapClause1(this, newColumn)
+    val newDataColumn = DataColumn.of[A](newColumn.name, rows.map(f).toSeq)
+    MapClause1(this, newDataColumn)
 
   def mapRows[A: ToKType](f: DataRow => Map[String, A]): MapClauseN[A] =
 
@@ -214,6 +275,9 @@ class DataFrame(
 
   def sortByDescending(columnNames: String*): DataFrame =
     DataFrame(ktapi.SortKt.sortByDesc(ktDataFrame, columnNames: _*))
+
+  def groupBy[A](column: ColumnAccessor[A]): GroupByClause =
+    GroupByClause(column, ktapi.GroupByKt.groupBy(ktDataFrame, column.name))
 
   def shuffle(): DataFrame =
     DataFrame(ktapi.ShuffleKt.shuffle(ktDataFrame))

@@ -2,6 +2,17 @@ package scotlinframe.utils
 
 import kotlin.reflect.KType
 import scotlinframe.DateTime.*
+import scotlinframe.DataFrame
+import org.jetbrains.kotlinx.{dataframe => ktdataframe}
+
+object KotlinToScotlinFrameType:
+  def fromKotlin[A](kotlinobj: Any): A =
+    kotlinobj match
+      // kotlin datafames are cast into dataframes and wrapped into a scotlinframe dataframes
+      // as casting happens only when we work with an object, this alleviates the need of explicit
+      // representation of dataframe columns
+      case ktDataFrame: ktdataframe.DataFrame[?] => DataFrame(ktDataFrame).asInstanceOf[A]
+      case kotlinobj                             => kotlinobj.asInstanceOf[A]
 
 trait ToKType[A]:
   def ktype: KType
@@ -76,6 +87,9 @@ object ToKType:
       val kclass =
         kotlin.jvm.JvmClassMappingKt.getKotlinClass[Duration](classOf[Duration])
       kotlin.reflect.full.KClasses.getDefaultType(kclass)
+
+  given [A](using toKType: ToKType[A]): ToKType[A | Null] with
+    def ktype: KType = toKType.ktype
 
 object FromKType:
   def ktypeToSimpleString(ktype: KType): String =

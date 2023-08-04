@@ -5,6 +5,7 @@ import scotlinframe.{DataFrame, DataColumn}
 import org.jetbrains.kotlinx.dataframe.{api => ktapi}
 import org.jetbrains.kotlinx.{dataframe => ktdataframe}
 import scala.jdk.CollectionConverters.*
+import scotlinframe.ColumnAccessor
 
 class MapClauseN[A: ToKType](
     dataframe: DataFrame,
@@ -13,9 +14,9 @@ class MapClauseN[A: ToKType](
   def add(): DataFrame =
     columns.foldLeft(dataframe)((df, col) => df.add(col))
 
-  def insertAfter(columnName: String): DataFrame =
+  def insertAfter(columnAccessor: ColumnAccessor[?]): DataFrame =
     columns
-      .foldLeft((dataframe, columnName))((dfAndName, col) =>
-        (dfAndName._1.insert(col).after(dfAndName._2), dfAndName._2)
+      .foldLeft((dataframe, columnAccessor))((dfWithAccessor, col) =>
+        (dfWithAccessor._1.insert(col).after(dfWithAccessor._2), dfWithAccessor._2)
       )
       ._1

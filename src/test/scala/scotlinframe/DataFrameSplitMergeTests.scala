@@ -10,12 +10,12 @@ class DataFrameSplitMergeTests extends FunSuite:
     )
 
     val newDf = df
-      .split("From_To")
+      .split("From_To".asColumn[String])
       .by((a: String) => (a.nn.split("-")(0), a.nn.split("-")(1)))
-      .into("From", "To")
+      .into("From".asColumn, "To".asColumn)
 
-    assertEquals(newDf.get[String]("From").values, Seq("1", "2", "3"))
-    assertEquals(newDf.get[String]("To").values, Seq("3", "4", "5"))
+    assertEquals(newDf.get("From".asColumn[String]).values, Seq("1", "2", "3"))
+    assertEquals(newDf.get("To".asColumn[String]).values, Seq("3", "4", "5"))
 
   test("Two columns can be merged into one"):
     val df = DataFrame.ofColumns(
@@ -24,10 +24,10 @@ class DataFrameSplitMergeTests extends FunSuite:
     )
 
     val newDf =
-      df.merge("From", "To")
+      df.merge("From".asColumn, "To".asColumn)
         .withFunction((a: String, b: String) => s"${a.nn}-${b.nn}")
-        .into("From_To")
+        .into("From_To".asColumn)
     assertEquals(
-      newDf.get[String]("From_To").values.map(_.nn),
+      newDf.get("From_To".asColumn[String]).values.map(_.nn),
       Seq("1-3", "2-4", "3-5")
     )

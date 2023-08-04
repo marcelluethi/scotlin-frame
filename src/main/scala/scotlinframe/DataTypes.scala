@@ -35,4 +35,5 @@ object DataType:
         DataType.LocalDate
       case ktype if ktype == summon[ToKType[LocalTime]].ktype =>
         DataType.LocalTime
+      // TODO add a dataype for a dataframe, in case we have nested columns
       case _ => DataType.UnknownType

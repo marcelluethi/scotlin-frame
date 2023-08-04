@@ -6,29 +6,31 @@ import org.jetbrains.kotlinx.dataframe.{api => ktapi}
 import org.jetbrains.kotlinx.{dataframe => ktdataframe}
 import scala.jdk.CollectionConverters.*
 import scotlinframe.dataframe.SplitIntoClause
+import scotlinframe.ColumnAccessor
 
-class SplitByClause(
+class SplitByClause[A](
     dataframe: DataFrame,
-    columnName: String
+    column: ColumnAccessor[A]
 ):
-  def by[A, R1: ToKType, R2: ToKType](
-      splitter: A | Null => (R1, R2)
-  ): SplitIntoClause[R1, R2] =
-    val columnValues = dataframe.get[A](columnName).values.map(splitter)
-    SplitIntoClause(dataframe, columnName, columnValues)
 
-class SplitIntoClause[R1: ToKType, R2: ToKType](
+  def by[R1: ToKType, R2: ToKType](
+      splitter: A | Null => (R1, R2)
+  ): SplitIntoClause[A, R1, R2] =
+    val columnValues = dataframe.get[A](column).values.map(splitter)
+    SplitIntoClause(dataframe, column, columnValues)
+
+class SplitIntoClause[A, R1: ToKType, R2: ToKType](
     dataframe: DataFrame,
-    columnName: String,
+    column: ColumnAccessor[A],
     columnValues: Seq[(R1, R2)]
 ):
 
-  def into(newColumnName1: String, newColumnName2: String): DataFrame =
+  def into(newColumn1: ColumnAccessor[R1], newColumn2: ColumnAccessor[R2]): DataFrame =
     val (columnValues1, columnValues2) = columnValues.unzip
-    val newColumn1 = DataColumn.of(newColumnName1, columnValues1)
-    val newColumn2 = DataColumn.of(newColumnName2, columnValues2)
+    val newCol1 = DataColumn.of(newColumn1.name, columnValues1)
+    val newCol2 = DataColumn.of(newColumn2.name, columnValues2)
     dataframe
-      .replace(columnName)
-      .withColumn(newColumn1)
-      .insert(newColumn2)
-      .after(newColumn1.name)
+      .replace(column)
+      .withColumn(newCol1)
+      .insert(newCol2)
+      .after(newColumn1)

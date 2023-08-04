@@ -13,14 +13,18 @@ class DataFrameIOTests extends FunSuite:
   test("can create a dataframe from a csv file"):
     val file = File(getClass.getResource("/persons.csv").getPath)
 
+    val birthdate = "Birthdate".asColumn[LocalDate]
+    val name = "Name".asColumn[String]
+    val age = "Age".asColumn[Int]
+
     DataFrame.readCSVFromFile(file) match
       case Failure(error) => fail(s"Failed to read csv file: $error")
       case Success(df) =>
-        val x = df.get[LocalDate]("Birthdate").get(0)
-        assertEquals(df.get[String]("Name").values, Seq("Joe", "Bob"))
-        assertEquals(df.get[Int]("Age").values, Seq(30, 40))
+        val x = df.get(birthdate).get(0)
+        assertEquals(df.get(name).values, Seq("Joe", "Bob"))
+        assertEquals(df.get(age).values, Seq(30, 40))
         assertEquals(
-          df.get[LocalDate]("Birthdate").values,
+          df.get(birthdate).values,
           Seq(LocalDate.of(1980, 9, 8), LocalDate.of(1970, 2, 12))
         )
 

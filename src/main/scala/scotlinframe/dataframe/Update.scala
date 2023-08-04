@@ -6,6 +6,8 @@ import org.jetbrains.kotlinx.dataframe.{api => ktapi}
 import org.jetbrains.kotlinx.{dataframe => ktdataframe}
 import scala.jdk.CollectionConverters.*
 import scotlinframe.dataframe.SplitIntoClause
+import scotlinframe.utils.KotlinToScotlinFrameType
+import scotlinframe.ColumnAccessor
 
 class UpdateClause(
     private[scotlinframe] val ktUpdateObj: ktapi.Update[?, AnyRef]
@@ -20,18 +22,18 @@ class UpdateClause(
 
   def mapValue[A, R](updateFun: A => R): DataFrame =
     val updateFunKt: kotlin.jvm.functions.Function2[ktapi.AddDataRow[?], Object, R] =
-      (r, a) => updateFun(a.asInstanceOf[A])
+      (r, a) => updateFun(KotlinToScotlinFrameType.fromKotlin[A](a))
     DataFrame(ktapi.UpdateKt.`with`(ktUpdateObj, updateFunKt))
 
 class MapClause1[A: ToKType](
     dataframe: DataFrame,
-    column: DataColumn[A | Null]
+    mappedColumn: DataColumn[A | Null]
 ):
   def add(): DataFrame =
-    dataframe.add(column)
+    dataframe.add(mappedColumn)
 
-  def insertAfter(columnName: String): DataFrame =
-    dataframe.insert(column).after(columnName)
+  def insertAfter[A](column: ColumnAccessor[A]): DataFrame =
+    dataframe.insert(mappedColumn).after(column)
 
-  def replace(columnName: String): DataFrame =
-    dataframe.replace(columnName).withColumn(column)
+  def replace[A](column: ColumnAccessor[A]): DataFrame =
+    dataframe.replace(column).withColumn(mappedColumn)
